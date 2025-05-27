@@ -1,0 +1,74 @@
+Archivo: app.c
+
+Este archivo implementa el ejecutor cíclico de tareas del sistema.
+Es responsable de inicializar dos tareas: una de sensado y otra de interfaz de usuario, y de actualizarlas periódicamente.
+
+
+Tipos de datos definidos:
+
+1. task_cfg_t (estructura):
+   - Define la configuración de cada tarea.
+   - Contiene:
+        - Puntero a función de inicialización: void (*task_init)(void *)
+        - Puntero a función de actualización: void (*task_update)(void *)
+        - Puntero a parámetros (opcional): void *
+
+2. task_dta_t (estructura):
+   - Almacena el WCET (Worst Case Execution Time) de cada tarea.
+   - Campo:
+        - WCET: tiempo máximo de ejecución en microsegundos.
+
+
+Arreglos de estructuras de datos:
+
+1. task_cfg_list[]:
+   - Array constante de tipo `task_cfg_t`.
+   - Contiene las funciones de inicialización y actualización de las tareas configuradas.
+   - En esta versión incluye dos tareas:
+        - `task_sensor`: encargada de sensado (por ejemplo, lectura de sensores).
+        - `task_menu`: encargada de la interacción con el usuario mediante un menú.
+
+2. task_dta_list[]:
+   - Array de tipo `task_dta_t`.
+   - Almacena el WCET medido de cada tarea, para evaluar su rendimiento.
+
+
+Variables globales:
+
+- g_app_cnt: contador general de ejecuciones del ciclo de aplicación.
+- g_app_time_us: tiempo total en microsegundos que tardaron todas las tareas en un ciclo.
+- g_app_tick_cnt: contador de ticks del sistema para controlar la frecuencia de actualización.
+- p_sys y p_app: mensajes que se imprimen por consola al inicio de la ejecución.
+
+
+Funciones definidas:
+
+1. app_init():
+   - Inicializa el sistema y todas las tareas:
+     • Imprime mensajes por consola (usando LOGGER_LOG).
+     • Inicializa variables y contadores.
+     • Recorre el arreglo `task_cfg_list` e invoca cada `task_x_init()`.
+     • Inicializa el contador de ciclos (DWT).
+     • Establece en cero los ticks compartidos y los protege deshabilitando interrupciones.
+
+2. app_update():
+   - Ejecuta las tareas cuando hay al menos un tick disponible.
+   - Por cada tarea:
+     • Invoca su `task_x_update()`.
+     • Mide el tiempo que tarda (usando el contador de ciclos).
+     • Suma ese tiempo al contador global `g_app_time_us`.
+     • Si el tiempo excede el WCET registrado, lo actualiza.
+
+3. HAL_SYSTICK_Callback():
+   - Función llamada automáticamente en cada tick del sistema.
+   - Incrementa:
+     • g_app_tick_cnt: habilita un nuevo ciclo de actualización.
+     • g_task_sensor_tick_cnt y g_task_menu_tick_cnt: habilita actualización de esas tareas.
+
+
+Comentarios:
+
+- El ejecutor cíclico usa el mecanismo de tick para decidir cuándo ejecutar las tareas.
+- A partir del WCET se puede evaluar el rendimiento temporal de cada tarea.
+- Es una arquitectura escalable: se pueden agregar más tareas al `task_cfg_list` y `task_dta_list`.
+- El control de tiempo por tareas permite implementar una política de ejecución no bloqueante.
