@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (12.3.rel1)
+# Toolchain: GNU Tools for STM32 (13.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -61,8 +61,8 @@ all: main-build
 main-build: tdse-tp3_06-interactive_menu.elf secondary-outputs
 
 # Tool invocations
-tdse-tp3_06-interactive_menu.elf tdse-tp3_06-interactive_menu.map: $(OBJS) $(USER_OBJS) C:\Users\mateo\Documents\FIUBA\TdSE\tps\tp3\TdSE_Guia_TP3-Cuestionario_06-11mo_Proyecto_p_placa_NUCLEO-F103RB\tdse-tp3_06-interactive_menu\STM32F103RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "tdse-tp3_06-interactive_menu.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\mateo\Documents\FIUBA\TdSE\tps\tp3\TdSE_Guia_TP3-Cuestionario_06-11mo_Proyecto_p_placa_NUCLEO-F103RB\tdse-tp3_06-interactive_menu\STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="tdse-tp3_06-interactive_menu.map" -Wl,--gc-sections -static -specs=rdimon.specs --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+tdse-tp3_06-interactive_menu.elf tdse-tp3_06-interactive_menu.map: $(OBJS) $(USER_OBJS) C:\Users\ORLANDO\STM32CubeIDE\tdse_workspace_tp3\tdse-tp3_06-interactive_menu\STM32F103RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "tdse-tp3_06-interactive_menu.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\ORLANDO\STM32CubeIDE\tdse_workspace_tp3\tdse-tp3_06-interactive_menu\STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="tdse-tp3_06-interactive_menu.map" -Wl,--gc-sections -static -specs=rdimon.specs --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

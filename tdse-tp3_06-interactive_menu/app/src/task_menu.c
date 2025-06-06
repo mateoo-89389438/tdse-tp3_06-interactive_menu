@@ -37,175 +37,138 @@
  */
 
 /********************** inclusions *******************************************/
-/* Project includes. */
 #include "main.h"
-
-/* Demo includes. */
 #include "logger.h"
 #include "dwt.h"
-
-/* Application & Tasks includes. */
 #include "board.h"
 #include "app.h"
 #include "task_menu_attribute.h"
 #include "task_menu_interface.h"
 #include "display.h"
 
-/********************** macros and definitions *******************************/
-#define G_TASK_MEN_CNT_INI			0ul
-#define G_TASK_MEN_TICK_CNT_INI		0ul
+#define G_TASK_MEN_CNT_INI           0ul
+#define G_TASK_MEN_TICK_CNT_INI      0ul
+#define CUSTOM_DELAY_TICKS          37u
 
-#define DEL_MEN_XX_MIN				0ul
-#define DEL_MEN_XX_MED				50ul
-#define DEL_MEN_XX_MAX				500ul
+/* Variables auxiliares para el menú */
+static uint8_t selectedMotor = 0;
+static uint8_t selectedParam = 1; // 1: Power, 2: Speed, 3: Spin
+static uint8_t valueTemp = 0;
 
-/********************** internal data declaration ****************************/
-task_menu_dta_t task_menu_dta =
-	{DEL_MEN_XX_MIN, ST_MEN_XX_IDLE, EV_MEN_ENT_IDLE, false};
+/* Datos de tarea */
+task_menu_dta_t task_menu_dta = {CUSTOM_DELAY_TICKS, ST_MEN_IDLE, EV_MEN_ENT_IDLE, false};
 
-#define MENU_DTA_QTY	(sizeof(task_menu_dta)/sizeof(task_menu_dta_t))
-
-/********************** internal functions declaration ***********************/
-
-/********************** internal data definition *****************************/
-const char *p_task_menu 		= "Task Menu (Interactive Menu)";
-const char *p_task_menu_ 		= "Non-Blocking & Update By Time Code";
-
-/********************** external data declaration ****************************/
 uint32_t g_task_menu_cnt;
 volatile uint32_t g_task_menu_tick_cnt;
 
-/********************** external functions definition ************************/
 void task_menu_init(void *parameters)
 {
-	task_menu_dta_t *p_task_menu_dta;
-	task_menu_st_t	state;
-	task_menu_ev_t	event;
-	bool b_event;
-
-	/* Print out: Task Initialized */
-	LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_menu_init), p_task_menu);
-	LOGGER_LOG("  %s is a %s\r\n", GET_NAME(task_menu), p_task_menu_);
-
+	LOGGER_LOG("Task Menu (Interactive Menu) iniciado\r\n");
 	g_task_menu_cnt = G_TASK_MEN_CNT_INI;
-
-	/* Print out: Task execution counter */
-	LOGGER_LOG("   %s = %lu\r\n", GET_NAME(g_task_menu_cnt), g_task_menu_cnt);
-
+	g_task_menu_tick_cnt = G_TASK_MEN_TICK_CNT_INI;
 	init_queue_event_task_menu();
-
-	/* Update Task Actuator Configuration & Data Pointer */
-	p_task_menu_dta = &task_menu_dta;
-
-	/* Print out: Task execution FSM */
-	state = p_task_menu_dta->state;
-	LOGGER_LOG("   %s = %lu", GET_NAME(state), (uint32_t)state);
-
-	event = p_task_menu_dta->event;
-	LOGGER_LOG("   %s = %lu", GET_NAME(event), (uint32_t)event);
-
-	b_event = p_task_menu_dta->flag;
-	LOGGER_LOG("   %s = %s\r\n", GET_NAME(b_event), (b_event ? "true" : "false"));
-
-	cycle_counter_init();
-	cycle_counter_reset();
-
-	displayInit( DISPLAY_CONNECTION_GPIO_4BITS );
-
-    displayCharPositionWrite(0, 0);
+	displayInit(DISPLAY_CONNECTION_GPIO_4BITS);
+	displayCharPositionWrite(0, 0);
 	displayStringWrite("TdSE Bienvenidos");
-
 	displayCharPositionWrite(0, 1);
 	displayStringWrite("Test Nro: ");
-
-	g_task_menu_tick_cnt = G_TASK_MEN_TICK_CNT_INI;
+	cycle_counter_init();
+	cycle_counter_reset();
 }
 
 void task_menu_update(void *parameters)
 {
-	task_menu_dta_t *p_task_menu_dta;
-	bool b_time_update_required = false;
 	char menu_str[8];
-
-	/* Update Task Menu Counter */
 	g_task_menu_cnt++;
 
-	/* Protect shared resource (g_task_menu_tick) */
-	__asm("CPSID i");	/* disable interrupts*/
-    if (G_TASK_MEN_TICK_CNT_INI < g_task_menu_tick_cnt)
-    {
-    	g_task_menu_tick_cnt--;
-    	b_time_update_required = true;
-    }
-    __asm("CPSIE i");	/* enable interrupts*/
+	__asm("CPSID i");
+	if (G_TASK_MEN_TICK_CNT_INI < g_task_menu_tick_cnt)
+		g_task_menu_tick_cnt--;
+	__asm("CPSIE i");
 
-    while (b_time_update_required)
-    {
-		/* Protect shared resource (g_task_menu_tick) */
-		__asm("CPSID i");	/* disable interrupts*/
-		if (G_TASK_MEN_TICK_CNT_INI < g_task_menu_tick_cnt)
-		{
-			g_task_menu_tick_cnt--;
-			b_time_update_required = true;
+	if (G_TASK_MEN_TICK_CNT_INI < g_task_menu_tick_cnt)
+		return;
+
+	g_task_menu_tick_cnt = CUSTOM_DELAY_TICKS;
+	task_menu_dta_t *p = &task_menu_dta;
+
+	if (p->tick > 0)
+		p->tick--;
+	else {
+		snprintf(menu_str, sizeof(menu_str), "%lu", g_task_menu_cnt / 1000ul);
+		displayCharPositionWrite(10, 1);
+		displayStringWrite(menu_str);
+		p->tick = CUSTOM_DELAY_TICKS;
+
+		if (any_event_task_menu()) {
+			p->flag = true;
+			p->event = get_event_task_menu();
 		}
-		else
+
+		if (!p->flag) return;
+
+		switch (p->state)
 		{
-			b_time_update_required = false;
-		}
-		__asm("CPSIE i");	/* enable interrupts*/
+			case ST_MEN_IDLE:
+				if (p->event == EV_MEN_ENT_ACTIVE) {
+					p->flag = false;
+					p->state = ST_MEN_MENU1;
+				}
+				break;
 
-    	/* Update Task Menu Data Pointer */
-		p_task_menu_dta = &task_menu_dta;
+			case ST_MEN_MENU1:
+				if (p->event == EV_MEN_NEX_ACTIVE) {
+					selectedMotor = (selectedMotor + 1) % 2;
+				} else if (p->event == EV_MEN_ENT_ACTIVE) {
+					p->state = ST_MEN_MENU2;
+				} else if (p->event == EV_MEN_ESC_ACTIVE) {
+					p->state = ST_MEN_IDLE;
+				}
+				p->flag = false;
+				break;
 
-    	if (DEL_MEN_XX_MIN < p_task_menu_dta->tick)
-		{
-			p_task_menu_dta->tick--;
-		}
-		else
-		{
-			snprintf(menu_str, sizeof(menu_str), "%lu", (g_task_menu_cnt/1000ul));
-			displayCharPositionWrite(10, 1);
-			displayStringWrite(menu_str);
-
-			p_task_menu_dta->tick = DEL_MEN_XX_MAX;
-
-			if (true == any_event_task_menu())
-			{
-				p_task_menu_dta->flag = true;
-				p_task_menu_dta->event = get_event_task_menu();
-			}
-
-			switch (p_task_menu_dta->state)
-			{
-				case ST_MEN_XX_IDLE:
-
-					if ((true == p_task_menu_dta->flag) && (EV_MEN_ENT_ACTIVE == p_task_menu_dta->event))
-					{
-						p_task_menu_dta->flag = false;
-						p_task_menu_dta->state = ST_MEN_XX_ACTIVE;
+			case ST_MEN_MENU2:
+				if (p->event == EV_MEN_NEX_ACTIVE) {
+					selectedParam = (selectedParam % 3) + 1;
+				} else if (p->event == EV_MEN_ENT_ACTIVE) {
+					switch (selectedParam) {
+						case 1: p->state = ST_MEN_MENU3_POWER; break;
+						case 2: p->state = ST_MEN_MENU3_SPEED; break;
+						case 3: p->state = ST_MEN_MENU3_SPIN;  break;
 					}
+				} else if (p->event == EV_MEN_ESC_ACTIVE) {
+					p->state = ST_MEN_MENU1;
+				}
+				p->flag = false;
+				break;
 
-					break;
+			case ST_MEN_MENU3_POWER:
+				if (p->event == EV_MEN_NEX_ACTIVE) {
+					valueTemp = (valueTemp + 1) % 2;
+				} else if (p->event == EV_MEN_ESC_ACTIVE) {
+					// guardar valor si aplica
+					p->state = ST_MEN_MENU2;
+				}
+				p->flag = false;
+				break;
 
-				case ST_MEN_XX_ACTIVE:
+			case ST_MEN_MENU3_SPEED:
+				if (p->event == EV_MEN_NEX_ACTIVE) {
+					valueTemp = (valueTemp + 1) % 10;
+				} else if (p->event == EV_MEN_ESC_ACTIVE) {
+					p->state = ST_MEN_MENU2;
+				}
+				p->flag = false;
+				break;
 
-					if ((true == p_task_menu_dta->flag) && (EV_MEN_ENT_IDLE == p_task_menu_dta->event))
-					{
-						p_task_menu_dta->flag = false;
-						p_task_menu_dta->state = ST_MEN_XX_IDLE;
-					}
-
-					break;
-
-				default:
-
-					p_task_menu_dta->tick  = DEL_MEN_XX_MIN;
-					p_task_menu_dta->state = ST_MEN_XX_IDLE;
-					p_task_menu_dta->event = EV_MEN_ENT_IDLE;
-					p_task_menu_dta->flag  = false;
-
-					break;
-			}
+			case ST_MEN_MENU3_SPIN:
+				if (p->event == EV_MEN_NEX_ACTIVE) {
+					valueTemp = (valueTemp + 1) % 2;
+				} else if (p->event == EV_MEN_ESC_ACTIVE) {
+					p->state = ST_MEN_MENU2;
+				}
+				p->flag = false;
+				break;
 		}
 	}
 }

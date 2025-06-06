@@ -1,4 +1,107 @@
-  task_sensor.c (task_sensor.h, task_sensor_attribute.h) 
-   Non-Blocking & Update By Time Code -> Sensor Modeling
-  
-...
+Archivo: task_sensor.c & task_sensor_attribute.h
+
+Este archivo implementa la lógica de lectura de botones (sensor) mediante una máquina de estados finitos.
+Es responsable de detectar pulsaciones, gestionar rebotes (debounce) y generar eventos para el sistema.
+
+
+Tipos de datos definidos:
+
+1. task_sensor_ev_t (enum):
+   - Eventos que puede recibir la FSM del sensor:
+     - EV_BTN_XX_UP: Botón liberado.
+     - EV_BTN_XX_DOWN: Botón presionado.
+
+2. task_sensor_st_t (enum):
+   - Estados de la FSM:
+     - ST_BTN_XX_UP: Botón en reposo.
+     - ST_BTN_XX_FALLING: Detección de flanco descendente (debounce).
+     - ST_BTN_XX_DOWN: Botón confirmado como presionado.
+     - ST_BTN_XX_RISING: Detección de flanco ascendente (debounce).
+
+3. task_sensor_id_t (enum):
+   - Identificadores de botones:
+     - ID_BTN_ENT: Botón "Enter".
+     - ID_BTN_NEX: Botón "Next".
+     - ID_BTN_ESC: Botón "Escape".
+
+4. task_sensor_cfg_t (estructura):
+   - Configuración de cada botón:
+     - identifier: ID del botón (ID_BTN_ENT, ID_BTN_NEX, ID_BTN_ESC).
+     - gpio_port: Puerto GPIO asociado (GPIOB).
+     - pin: Pin GPIO (GPIO_PIN_10).
+     - pressed: Estado lógico cuando el botón está presionado (GPIO_PIN_RESET o GPIO_PIN_SET).
+     - tick_max: Tiempo máximo de debounce (en ticks).
+     - signal_up: Evento enviado al liberar el botón.
+     - signal_down: Evento enviado al presionar el botón.
+
+5. task_sensor_dta_t (estructura):
+   - Datos dinámicos de cada botón:
+     - tick: Contador para debounce.
+     - state: Estado actual de la FSM.
+     - event: Último evento detectado.
+
+
+Arreglos de estructuras de datos:
+
+1. task_sensor_cfg_list[]:
+   - Array constante de tipo task_sensor_cfg_t.
+   - Define la configuración de los 3 botones (ENT, NEX, ESC).
+   - Ejemplo para BTN_ENT:
+     c
+     {
+         ID_BTN_ENT, 
+         BTN_ENT_PORT,  // GPIOB
+         BTN_ENT_PIN,   // GPIO_PIN_10
+         BTN_ENT_PRESSED, // GPIO_PIN_RESET
+         DEL_BTN_XX_MAX,  // 50 ticks
+         EV_MEN_ENT_IDLE, // Evento al soltar
+         EV_MEN_ENT_ACTIVE // Evento al presionar
+     }
+     
+
+2. task_sensor_dta_list[]:
+   - Array de tipo task_sensor_dta_t.
+   - Almacena el estado actual de cada botón:
+     - tick: Inicializado a DEL_BTN_XX_MIN (0).
+     - state: Inicializado a ST_BTN_XX_UP.
+     - event: Inicializado a EV_BTN_XX_UP.
+
+
+
+Variables globales:
+- g_task_sensor_cnt: Contador de ejecuciones de la tarea.
+- g_task_sensor_tick_cnt: Contador de ticks para sincronización.
+- p_task_sensor y p_task_sensor_: Mensajes informativos para logs.
+
+
+
+Funciones definidas:
+
+1. task_sensor_init():
+   - Inicializa la tarea:
+     - Configura los GPIOs de los botones (no mostrado en el código, se hace en app_init()).
+     - Imprime logs con el estado inicial de cada botón.
+     - Reinicia contadores.
+
+2. task_sensor_update():
+   - Ejecuta la lógica principal de la FSM:
+     - Lee el estado físico de cada botón (HAL_GPIO_ReadPin).
+     - Gestiona transiciones de estados según eventos y tiempos de debounce.
+     - Envía eventos al menú (put_event_task_menu) cuando se confirma una pulsación.
+
+
+
+Máquina de Estados (FSM):
+- Transiciones clave:
+  - ST_BTN_XX_UP → ST_BTN_XX_FALLING: Al detectar EV_BTN_XX_DOWN, inicia debounce.
+  - ST_BTN_XX_FALLING → ST_BTN_XX_DOWN: Si el botón sigue presionado después de tick_max, envía signal_down.
+  - ST_BTN_XX_DOWN → ST_BTN_XX_RISING: Al detectar EV_BTN_XX_UP, inicia debounce.
+  - ST_BTN_XX_RISING → ST_BTN_XX_UP: Si el botón sigue liberado después de tick_max, envía signal_up.
+
+
+
+Comentarios:
+- Usa un contador (tick) para filtrar ruido mecánico.
+- Los eventos signal_up y signal_down se envían al módulo task_menu para controlar la interfaz.
+- Para agregar más botones, basta con extender task_sensor_cfg_list y task_sensor_dta_list.
+- El código depende de HAL (STM32Cube) para acceso a GPIOs.

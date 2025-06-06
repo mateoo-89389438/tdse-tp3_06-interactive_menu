@@ -1,7 +1,85 @@
-  task_menu.c (task_menu.h, task_menu_attribute.h) 
-   Non-Blocking Code -> System Modeling
-  
-  task_menu_interface.c (task_menu_interface.h)
-   Non-Blocking Code
+Archivo:  task_menu.c & task_menu_interface.h & task_menu_attribute.h
 
-...
+Estos archivos implementa el sistema de menú interactivo, 
+gestionando la interacción con botones y la visualización en el display LCD mediante una máquina de estados (FSM). 
+
+
+Tipos de datos definidos:
+
+1. task_menu_ev_t (enum - task_menu_attribute.h):
+   - Eventos del menú:
+     - EV_MEN_ENT_IDLE/EV_MEN_ENT_ACTIVE: Eventos para el botón "Enter".
+     - EV_MEN_NEX_IDLE/EV_MEN_NEX_ACTIVE: Eventos para el botón "Next".
+     - EV_MEN_ESC_IDLE/EV_MEN_ESC_ACTIVE: Eventos para el botón "Escape".
+
+2. task_menu_st_t (enum - task_menu_attribute.h):
+   - Estados del menú:
+     - ST_MEN_XX_IDLE: Menú inactivo.
+     - ST_MEN_XX_ACTIVE: Menú respondiendo a una acción.
+
+3. task_menu_dta_t (estructura - task_menu_attribute.h):
+   - Datos dinámicos del menú:
+     - tick: Contador para temporización.
+     - state: Estado actual (ST_MEN_XX_IDLE o ST_MEN_XX_ACTIVE).
+     - event: Último evento recibido.
+     - flag: Indicador de evento pendiente.
+
+
+Variables globales:
+- task_menu_dta (task_menu.c): Instancia única de task_menu_dta_t para almacenar el estado del menú.
+- g_task_menu_cnt: Contador de ejecuciones de la tarea.
+- g_task_menu_tick_cnt: Contador de ticks para sincronización.
+- p_task_menu y p_task_menu_: Mensajes para logs.
+
+
+
+Funciones clave:
+
+1. Interfaz (task_menu_interface.h):
+   - init_queue_event_task_menu(): Inicializa la cola de eventos.
+   - put_event_task_menu(): Envía un evento al menú (desde task_sensor).
+   - get_event_task_menu(): Obtiene el siguiente evento de la cola.
+   - any_event_task_menu(): Verifica si hay eventos pendientes.
+
+2. Inicialización (task_menu.c):
+   - task_menu_init():
+     - Configura el LCD (displayInit).
+     - Muestra el mensaje inicial ("TdSE Bienvenidos").
+     - Inicializa cola de eventos y contadores.
+
+3. Lógica principal (task_menu.c):
+   - task_menu_update():
+     - Actualiza el contador en pantalla cada 500 ticks (DEL_MEN_XX_MAX).
+     - Gestiona la FSM:
+       - Transición IDLE → ACTIVE al recibir EV_MEN_ENT_ACTIVE.
+       - Transición ACTIVE → IDLE al recibir EV_MEN_ENT_IDLE.
+
+
+
+Máquina de Estados (FSM):
+- Transiciones:
+  - ST_MEN_XX_IDLE → ST_MEN_XX_ACTIVE: Al detectar EV_MEN_ENT_ACTIVE (botón Enter presionado).
+  - ST_MEN_XX_ACTIVE → ST_MEN_XX_IDLE: Al detectar EV_MEN_ENT_IDLE (botón Enter liberado).
+
+
+
+Conexión con otros módulos:
+- Desde task_sensor:
+  - Los eventos de botones (EV_MEN_ENT_ACTIVE, etc.) se envían via put_event_task_menu().
+- Hacia el LCD:
+  - Usa las funciones displayCharPositionWrite() y displayStringWrite() para actualizar la interfaz.
+
+
+
+Comentarios:
+- Temporización: El menú se actualiza cada 500 ticks (ajustable via DEL_MEN_XX_MAX).
+- No bloqueante: La FSM y el LCD se gestionan sin delays bloqueantes.
+- Escalabilidad: Para añadir más estados/eventos, extender los enums en task_menu_attribute.h.
+- Debug: Los logs (via LOGGER_LOG) muestran el estado inicial y transiciones.
+
+
+
+Ejemplo de flujo:
+1. El usuario presiona BTN_ENT → task_sensor envía EV_MEN_ENT_ACTIVE.
+2. task_menu cambia a ST_MEN_XX_ACTIVE y actualiza el LCD.
+3. Al liberar BTN_ENT, se envía EV_MEN_ENT_IDLE y el menú vuelve a ST_MEN_XX_IDLE.

@@ -61,32 +61,39 @@ extern "C" {
  * 	------------------------+-----------------------+-----------------------+-----------------------+------------------------
  */
 
-/* Events to excite Task Menu */
-typedef enum task_menu_ev {EV_MEN_ENT_IDLE,
-						   EV_MEN_ENT_ACTIVE,
-						   EV_MEN_NEX_IDLE,
-						   EV_MEN_NEX_ACTIVE,
-						   EV_MEN_ESC_IDLE,
-						   EV_MEN_ESC_ACTIVE} task_menu_ev_t;
+#include <stdint.h>
+#include <stdbool.h>
 
-/* State of Task Menu */
-typedef enum task_menu_st {ST_MEN_XX_IDLE,
-						   ST_MEN_XX_ACTIVE} task_menu_st_t;
+/* Eventos extendidos para botones */
+typedef enum task_menu_ev {
+    EV_MEN_ENT_IDLE,
+    EV_MEN_ENT_ACTIVE,
+    EV_MEN_NEX_IDLE,
+    EV_MEN_NEX_ACTIVE,
+    EV_MEN_ESC_IDLE,
+    EV_MEN_ESC_ACTIVE
+} task_menu_ev_t;
 
-typedef struct
-{
-	uint32_t		tick;
-	task_menu_st_t	state;
-	task_menu_ev_t	event;
-	bool			flag;
+/* Estados extendidos del menú */
+typedef enum task_menu_st {
+    ST_MEN_IDLE,
+    ST_MEN_MENU1,
+    ST_MEN_MENU2,
+    ST_MEN_MENU3_POWER,
+    ST_MEN_MENU3_SPEED,
+    ST_MEN_MENU3_SPIN
+} task_menu_st_t;
+
+/* Datos de estado del menú */
+typedef struct {
+    uint32_t        tick;
+    task_menu_st_t  state;
+    task_menu_ev_t  event;
+    bool            flag;
 } task_menu_dta_t;
 
-/********************** external data declaration ****************************/
 extern task_menu_dta_t task_menu_dta;
 
-/********************** external functions declaration ***********************/
-
-/********************** End of CPP guard *************************************/
 #ifdef __cplusplus
 }
 #endif
